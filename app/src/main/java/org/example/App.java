@@ -7,24 +7,45 @@ package org.example;
 import org.w3c.dom.*;
 import javax.xml.parsers.*;
 import java.io.*;
+import java.net.URL;
 import java.util.*;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 public class App {
     public static void main(String[] args) {
-        if (args.length == 0) {
-            System.out.println("Please provide field names as command-line arguments (comma-separated).");
-            return;
+        if (args.length == 0 || args[0].trim().isEmpty()) {
+            System.err.println("Error: Please provide a comma-separated list of field names as an argument.");
+            System.exit(1);
+        }
+
+        Set<String> selectedFields = new HashSet<>();
+        for (String field : args[0].split(",")) {
+            if (!field.trim().isEmpty()) {
+                selectedFields.add(field.trim());
+            }
+        }
+
+        if (selectedFields.isEmpty()) {
+            System.err.println("Error: No valid field names provided.");
+            System.exit(1);
         }
 
         try {
-            String[] fields = args[0].split(",");
-            Set<String> selectedFields = new HashSet<>();
-            for (String field : fields) {
-                selectedFields.add(field.trim());
+            // Load XML file from resources
+            URL xmlResource = App.class.getClassLoader().getResource("data.xml");
+            if (xmlResource == null) {
+                System.err.println("Error: XML file not found in resources.");
+                System.exit(1);
             }
 
-            File xmlFile = new File(App.class.getClassLoader().getResource("data.xml").getFile());
+            File xmlFile = new File(xmlResource.getFile());
+            if (!xmlFile.exists()) {
+                System.err.println("Error: XML file not found.");
+                System.exit(1);
+            }
+
+            // Parse XML
             DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
             DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
             Document doc = dBuilder.parse(xmlFile);
@@ -38,17 +59,27 @@ public class App {
                 if (node.getNodeType() == Node.ELEMENT_NODE) {
                     String tagName = node.getNodeName();
                     if (selectedFields.contains(tagName)) {
-                        output.put(tagName, node.getTextContent().trim());
+                        String value = node.getTextContent().trim();
+                        output.put(tagName, value);
                     }
                 }
             }
 
-            Gson gson = new Gson();
+            // Report missing fields
+            for (String field : selectedFields) {
+                if (!output.containsKey(field)) {
+                    output.put(field, "Field not found");
+                }
+            }
+
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
             String json = gson.toJson(output);
             System.out.println(json);
 
         } catch (Exception e) {
+            System.err.println("An unexpected error occurred:");
             e.printStackTrace();
+            System.exit(1);
         }
     }
 }
