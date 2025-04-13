@@ -8,6 +8,7 @@ import org.w3c.dom.*;
 import javax.xml.parsers.*;
 import java.io.*;
 import java.util.*;
+import com.google.gson.Gson;
 
 public class App {
     public static void main(String[] args) {
@@ -29,7 +30,7 @@ public class App {
             Document doc = dBuilder.parse(xmlFile);
             doc.getDocumentElement().normalize();
 
-            System.out.println("\nSelected Field Values:");
+            Map<String, String> output = new LinkedHashMap<>();
             NodeList list = doc.getElementsByTagName("*");
 
             for (int i = 0; i < list.getLength(); i++) {
@@ -37,10 +38,15 @@ public class App {
                 if (node.getNodeType() == Node.ELEMENT_NODE) {
                     String tagName = node.getNodeName();
                     if (selectedFields.contains(tagName)) {
-                        System.out.println(tagName + ": " + node.getTextContent().trim());
+                        output.put(tagName, node.getTextContent().trim());
                     }
                 }
             }
+
+            Gson gson = new Gson();
+            String json = gson.toJson(output);
+            System.out.println(json);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
