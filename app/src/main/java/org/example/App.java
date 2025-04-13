@@ -4,9 +4,12 @@
 package org.example;
 
 
-import org.w3c.dom.*;
-import javax.xml.parsers.*;
-import java.io.*;
+import org.xml.sax.*;
+import org.xml.sax.helpers.DefaultHandler;
+
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+import java.io.File;
 import java.net.URL;
 import java.util.*;
 import com.google.gson.Gson;
@@ -15,7 +18,7 @@ import com.google.gson.GsonBuilder;
 public class App {
     public static void main(String[] args) {
         if (args.length == 0 || args[0].trim().isEmpty()) {
-            System.err.println("Error: Please provide a comma-separated list of field names as an argument.");
+            System.err.println("Error: Please provide a comma-separated list of field names.");
             System.exit(1);
         }
 
@@ -32,7 +35,6 @@ public class App {
         }
 
         try {
-            // Load XML file from resources
             URL xmlResource = App.class.getClassLoader().getResource("data.xml");
             if (xmlResource == null) {
                 System.err.println("Error: XML file not found in resources.");
@@ -41,43 +43,52 @@ public class App {
 
             File xmlFile = new File(xmlResource.getFile());
             if (!xmlFile.exists()) {
-                System.err.println("Error: XML file not found.");
+                System.err.println("Error: XML file does not exist.");
                 System.exit(1);
             }
 
-            // Parse XML
-            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-            Document doc = dBuilder.parse(xmlFile);
-            doc.getDocumentElement().normalize();
-
             Map<String, String> output = new LinkedHashMap<>();
-            NodeList list = doc.getElementsByTagName("*");
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            SAXParser saxParser = factory.newSAXParser();
 
-            for (int i = 0; i < list.getLength(); i++) {
-                Node node = list.item(i);
-                if (node.getNodeType() == Node.ELEMENT_NODE) {
-                    String tagName = node.getNodeName();
-                    if (selectedFields.contains(tagName)) {
-                        String value = node.getTextContent().trim();
-                        output.put(tagName, value);
+            saxParser.parse(xmlFile, new DefaultHandler() {
+                StringBuilder content = new StringBuilder();
+                String currentElement = null;
+
+                @Override
+                public void startElement(String uri, String localName, String qName, Attributes attributes) {
+                    if (selectedFields.contains(qName)) {
+                        currentElement = qName;
+                        content.setLength(0); // clear buffer
                     }
                 }
-            }
 
-            // Report missing fields
-            for (String field : selectedFields) {
-                if (!output.containsKey(field)) {
-                    output.put(field, "Field not found");
+                @Override
+                public void characters(char[] ch, int start, int length) {
+                    if (currentElement != null) {
+                        content.append(ch, start, length);
+                    }
                 }
+
+                @Override
+                public void endElement(String uri, String localName, String qName) {
+                    if (currentElement != null && currentElement.equals(qName)) {
+                        output.put(currentElement, content.toString().trim());
+                        currentElement = null;
+                    }
+                }
+            });
+
+            // Mark missing fields
+            for (String field : selectedFields) {
+                output.putIfAbsent(field, "Field not found");
             }
 
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            String json = gson.toJson(output);
-            System.out.println(json);
+            System.out.println(gson.toJson(output));
 
         } catch (Exception e) {
-            System.err.println("An unexpected error occurred:");
+            System.err.println("Unexpected error:");
             e.printStackTrace();
             System.exit(1);
         }
