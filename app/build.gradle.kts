@@ -35,7 +35,6 @@ java {
 application {
     // Define the main class for the application.
     mainClass = "org.example.App"
-    applicationDefaultJvmArgs = []
 }
 
 tasks.named<Test>("test") {
