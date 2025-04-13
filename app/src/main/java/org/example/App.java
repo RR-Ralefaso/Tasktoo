@@ -11,18 +11,18 @@ import java.util.*;
 
 public class App {
     public static void main(String[] args) {
-        try {
-            // Ask the user for which fields to print
-            Scanner scanner = new Scanner(System.in);
-            System.out.println("Enter field names to extract (comma-separated): ");
-            String[] fields = scanner.nextLine().split(",");
+        if (args.length == 0) {
+            System.out.println("Please provide field names as command-line arguments (comma-separated).");
+            return;
+        }
 
+        try {
+            String[] fields = args[0].split(",");
             Set<String> selectedFields = new HashSet<>();
             for (String field : fields) {
                 selectedFields.add(field.trim());
             }
 
-            // Load XML
             File xmlFile = new File(App.class.getClassLoader().getResource("data.xml").getFile());
             DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
             DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
